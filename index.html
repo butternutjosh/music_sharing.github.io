@@ -293,11 +293,17 @@ async function loadTracks() {
 
 
 // Display tracks
+// Keep track of which artist and album are selected
+let selectedArtist = null;
+let selectedAlbum = null;
+
+
+// Display music library
 function displayTracks(list) {
 
     trackList.innerHTML = "";
 
-    // Group songs by artist
+    // Group tracks by artist
     const artists = {};
 
     list.forEach(track => {
@@ -317,108 +323,154 @@ function displayTracks(list) {
 
     });
 
-    // Display artists alphabetically
-    Object.keys(artists).sort().forEach(artist => {
 
-        const artistSection = document.createElement("section");
+    // BACK BUTTON
+    if (selectedArtist) {
 
-        const heading = document.createElement("h2");
-        heading.textContent = artist;
+        const back = document.createElement("button");
+        back.textContent = selectedAlbum ? "← Back to albums" : "← Back to artists";
 
-        artistSection.appendChild(heading);
+        back.addEventListener("click", () => {
 
-        // Display albums alphabetically
-        Object.keys(artists[artist]).sort().forEach(album => {
-
-            const songs = artists[artist][album];
-
-            const albumSection = document.createElement("div");
-
-            albumSection.style.background = "#202020";
-            albumSection.style.padding = "18px";
-            albumSection.style.marginBottom = "20px";
-            albumSection.style.borderRadius = "10px";
-
-            const albumHeader = document.createElement("div");
-
-            albumHeader.style.display = "flex";
-            albumHeader.style.alignItems = "center";
-            albumHeader.style.gap = "15px";
-
-            // Album artwork
-            const cover = document.createElement("img");
-
-            cover.style.width = "90px";
-            cover.style.height = "90px";
-            cover.style.objectFit = "cover";
-            cover.style.borderRadius = "6px";
-            cover.style.background = "#333";
-
-            if (songs[0].artworkKey) {
-
-                cover.src =
-                    `${API}/api/artwork?key=${encodeURIComponent(songs[0].artworkKey)}`;
-
+            if (selectedAlbum) {
+                selectedAlbum = null;
             } else {
-
-                cover.src =
-                    "https://placehold.co/180x180/333333/ffffff?text=No+Artwork";
-
+                selectedArtist = null;
             }
 
-            const albumTitle = document.createElement("h3");
-            albumTitle.textContent = album;
-
-            albumHeader.appendChild(cover);
-            albumHeader.appendChild(albumTitle);
-
-            albumSection.appendChild(albumHeader);
-
-            // Songs within the album
-            songs.forEach(track => {
-
-                const row = document.createElement("div");
-
-                row.className = "track";
-                row.style.marginTop = "10px";
-
-                const title = document.createElement("div");
-                title.className = "track-info";
-                title.textContent = track.name;
-
-                const play = document.createElement("button");
-                play.textContent = "▶";
-
-                play.addEventListener("click", () => {
-
-                    player.src =
-                        `${API}/api/file?key=${encodeURIComponent(track.key)}`;
-
-                    player.play();
-
-                });
-
-                const download = document.createElement("a");
-
-                download.className = "download";
-                download.textContent = "Download";
-
-                download.href =
-                    `${API}/api/file?key=${encodeURIComponent(track.key)}&download=1`;
-
-                row.appendChild(title);
-                row.appendChild(play);
-                row.appendChild(download);
-
-                albumSection.appendChild(row);
-
-            });
-
-            artistSection.appendChild(albumSection);
+            displayTracks(tracks);
 
         });
 
-        trackList.appendChild(artistSection);
+        trackList.appendChild(back);
+
+    }
+
+
+    // ARTIST VIEW
+    if (!selectedArtist) {
+
+        Object.keys(artists).sort().forEach(artist => {
+
+            const button = document.createElement("button");
+
+            button.textContent = artist;
+            button.style.display = "block";
+            button.style.width = "100%";
+            button.style.marginTop = "12px";
+            button.style.textAlign = "left";
+
+            button.addEventListener("click", () => {
+
+                selectedArtist = artist;
+                displayTracks(tracks);
+
+            });
+
+            trackList.appendChild(button);
+
+        });
+
+        return;
+    }
+
+
+    // ALBUM VIEW
+    if (!selectedAlbum) {
+
+        const heading = document.createElement("h2");
+        heading.textContent = selectedArtist;
+
+        trackList.appendChild(heading);
+
+        Object.keys(artists[selectedArtist] || {}).sort().forEach(album => {
+
+            const songs = artists[selectedArtist][album];
+
+            const albumButton = document.createElement("button");
+
+            albumButton.style.display = "flex";
+            albumButton.style.alignItems = "center";
+            albumButton.style.gap = "15px";
+            albumButton.style.width = "100%";
+            albumButton.style.marginTop = "15px";
+            albumButton.style.textAlign = "left";
+
+            const cover = document.createElement("img");
+
+            cover.style.width = "70px";
+            cover.style.height = "70px";
+            cover.style.objectFit = "cover";
+            cover.style.borderRadius = "6px";
+
+            cover.src = songs[0].artworkKey
+                ? `${API}/api/artwork?key=${encodeURIComponent(songs[0].artworkKey)}`
+                : "https://placehold.co/180x180/333333/ffffff?text=No+Artwork";
+
+            const albumInfo = document.createElement("span");
+
+            albumInfo.textContent = `${album} (${songs.length} tracks)`;
+
+            albumButton.appendChild(cover);
+            albumButton.appendChild(albumInfo);
+
+            albumButton.addEventListener("click", () => {
+
+                selectedAlbum = album;
+                displayTracks(tracks);
+
+            });
+
+            trackList.appendChild(albumButton);
+
+        });
+
+        return;
+    }
+
+
+    // TRACK VIEW
+    const heading = document.createElement("h2");
+
+    heading.textContent = `${selectedArtist} - ${selectedAlbum}`;
+
+    trackList.appendChild(heading);
+
+    const songs = artists[selectedArtist]?.[selectedAlbum] || [];
+
+    songs.forEach(track => {
+
+        const row = document.createElement("div");
+
+        row.className = "track";
+
+        const title = document.createElement("div");
+
+        title.className = "track-info";
+        title.textContent = track.name;
+
+        const play = document.createElement("button");
+
+        play.textContent = "▶";
+
+        play.addEventListener("click", () => {
+
+            player.src = `${API}/api/file?key=${encodeURIComponent(track.key)}`;
+            player.play();
+
+        });
+
+        const download = document.createElement("a");
+
+        download.className = "download";
+        download.textContent = "Download";
+        download.href = `${API}/api/file?key=${encodeURIComponent(track.key)}&download=1`;
+
+        row.appendChild(title);
+        row.appendChild(play);
+        row.appendChild(download);
+
+        trackList.appendChild(row);
 
     });
 
@@ -429,16 +481,20 @@ function displayTracks(list) {
 // Search tracks
 search.addEventListener("input", () => {
 
+    selectedArtist = null;
+    selectedAlbum = null;
+
     const query = search.value.toLowerCase();
 
     const filtered = tracks.filter(track =>
-        track.name.toLowerCase().includes(query)
+        (track.name || "").toLowerCase().includes(query) ||
+        (track.artist || "").toLowerCase().includes(query) ||
+        (track.album || "").toLowerCase().includes(query)
     );
 
     displayTracks(filtered);
 
 });
-
 
 // Upload a track
 // Upload multiple tracks or an entire folder
