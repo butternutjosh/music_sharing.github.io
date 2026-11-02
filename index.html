@@ -308,8 +308,8 @@ function displayTracks(list) {
 
     list.forEach(track => {
 
-        const artist = (track.artist || "Unknown Artist").trim();
-        const album = (track.album || "Unknown Album").trim();
+       const artist = (track.artist || "Unknown Artist").trim();
+       const album = (track.album || "Unknown Album").trim();
 
         if (!artists[artist]) {
             artists[artist] = {};
