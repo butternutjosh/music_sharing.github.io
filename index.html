@@ -297,32 +297,132 @@ function displayTracks(list) {
 
     trackList.innerHTML = "";
 
+    // Group songs by artist
+    const artists = {};
+
     list.forEach(track => {
 
-        const container = document.createElement("div");
-        container.className = "track";
+        const artist = track.artist || "Unknown Artist";
+        const album = track.album || "Unknown Album";
 
-        const info = document.createElement("div");
-        info.className = "track-info";
+        if (!artists[artist]) {
+            artists[artist] = {};
+        }
 
-        const name = document.createElement("div");
-        name.className = "track-name";
-        name.textContent = track.name;
+        if (!artists[artist][album]) {
+            artists[artist][album] = [];
+        }
 
-        const size = document.createElement("div");
-        size.className = "track-size";
-        size.textContent = `${(track.size / 1024 / 1024).toFixed(2)} MB`;
+        artists[artist][album].push(track);
 
-        info.appendChild(name);
-        info.appendChild(size);
+    });
 
-        const playButton = document.createElement("button");
-        playButton.textContent = "▶ Play";
+    // Display artists alphabetically
+    Object.keys(artists).sort().forEach(artist => {
 
-        playButton.addEventListener("click", () => {
-            player.src = `${API}/api/file?key=${encodeURIComponent(track.key)}`;
-            player.play();
+        const artistSection = document.createElement("section");
+
+        const heading = document.createElement("h2");
+        heading.textContent = artist;
+
+        artistSection.appendChild(heading);
+
+        // Display albums alphabetically
+        Object.keys(artists[artist]).sort().forEach(album => {
+
+            const songs = artists[artist][album];
+
+            const albumSection = document.createElement("div");
+
+            albumSection.style.background = "#202020";
+            albumSection.style.padding = "18px";
+            albumSection.style.marginBottom = "20px";
+            albumSection.style.borderRadius = "10px";
+
+            const albumHeader = document.createElement("div");
+
+            albumHeader.style.display = "flex";
+            albumHeader.style.alignItems = "center";
+            albumHeader.style.gap = "15px";
+
+            // Album artwork
+            const cover = document.createElement("img");
+
+            cover.style.width = "90px";
+            cover.style.height = "90px";
+            cover.style.objectFit = "cover";
+            cover.style.borderRadius = "6px";
+            cover.style.background = "#333";
+
+            if (songs[0].artworkKey) {
+
+                cover.src =
+                    `${API}/api/artwork?key=${encodeURIComponent(songs[0].artworkKey)}`;
+
+            } else {
+
+                cover.src =
+                    "https://placehold.co/180x180/333333/ffffff?text=No+Artwork";
+
+            }
+
+            const albumTitle = document.createElement("h3");
+            albumTitle.textContent = album;
+
+            albumHeader.appendChild(cover);
+            albumHeader.appendChild(albumTitle);
+
+            albumSection.appendChild(albumHeader);
+
+            // Songs within the album
+            songs.forEach(track => {
+
+                const row = document.createElement("div");
+
+                row.className = "track";
+                row.style.marginTop = "10px";
+
+                const title = document.createElement("div");
+                title.className = "track-info";
+                title.textContent = track.name;
+
+                const play = document.createElement("button");
+                play.textContent = "▶";
+
+                play.addEventListener("click", () => {
+
+                    player.src =
+                        `${API}/api/file?key=${encodeURIComponent(track.key)}`;
+
+                    player.play();
+
+                });
+
+                const download = document.createElement("a");
+
+                download.className = "download";
+                download.textContent = "Download";
+
+                download.href =
+                    `${API}/api/file?key=${encodeURIComponent(track.key)}&download=1`;
+
+                row.appendChild(title);
+                row.appendChild(play);
+                row.appendChild(download);
+
+                albumSection.appendChild(row);
+
+            });
+
+            artistSection.appendChild(albumSection);
+
         });
+
+        trackList.appendChild(artistSection);
+
+    });
+
+}
 
         const download = document.createElement("a");
         download.className = "download";
@@ -358,43 +458,72 @@ search.addEventListener("input", () => {
 
 // Upload a track
 // Upload multiple tracks or an entire folder
+// Read metadata from an MP3
+function readMetadata(file) {
+    return new Promise(resolve => {
+
+        jsmediatags.read(file, {
+
+            onSuccess: function(result) {
+
+                const tags = result.tags;
+                const picture = tags.picture;
+
+                let artwork = null;
+
+                if (picture) {
+                    const bytes = new Uint8Array(picture.data);
+
+                    artwork = new Blob([bytes], {
+                        type: picture.format
+                    });
+                }
+
+                resolve({
+                    title: tags.title || file.name.replace(/\.mp3$/i, ""),
+                    artist: tags.artist || "Unknown Artist",
+                    album: tags.album || "Unknown Album",
+                    artwork: artwork
+                });
+
+            },
+
+            onError: function() {
+
+                resolve({
+                    title: file.name.replace(/\.mp3$/i, ""),
+                    artist: "Unknown Artist",
+                    album: "Unknown Album",
+                    artwork: null
+                });
+
+            }
+
+        });
+
+    });
+}
+
+
+// Upload music
 document.getElementById("upload-button").addEventListener("click", async () => {
 
     const fileInput = document.getElementById("file-input");
     const status = document.getElementById("upload-status");
 
-    const files = Array.from(fileInput.files);
-
-    if (files.length === 0) {
-        status.textContent = "Please select a folder.";
-        return;
-    }
-
-    // Keep only MP3 files
-    const mp3Files = files.filter(file =>
+    const files = Array.from(fileInput.files).filter(file =>
         file.name.toLowerCase().endsWith(".mp3")
     );
 
-    if (mp3Files.length === 0) {
-        status.textContent = "No MP3 files found in that folder.";
-        return;
-    }
-
-    // Check file sizes
-    const oversized = mp3Files.filter(file =>
-        file.size > 90 * 1024 * 1024
-    );
-
-    if (oversized.length > 0) {
-        status.textContent =
-            `${oversized.length} files exceed the 90 MB limit.`;
+    if (!files.length) {
+        status.textContent = "Select a folder containing MP3 files.";
         return;
     }
 
     let password = sessionStorage.getItem("uploadPassword");
 
     if (!password) {
-        password = prompt("Enter the upload password:");
+        password = prompt("Enter upload password:");
 
         if (!password) return;
 
@@ -404,26 +533,45 @@ document.getElementById("upload-button").addEventListener("click", async () => {
     let successful = 0;
     let failed = 0;
 
-    // Upload files individually
-    for (let i = 0; i < mp3Files.length; i++) {
+    for (let i = 0; i < files.length; i++) {
 
-        const file = mp3Files[i];
+        const file = files[i];
 
         status.textContent =
-            `Uploading ${i + 1} of ${mp3Files.length}: ${file.name}`;
+            `Reading metadata: ${file.name} (${i + 1}/${files.length})`;
+
+        if (file.size > 90 * 1024 * 1024) {
+            failed++;
+            continue;
+        }
 
         try {
 
-            const response = await fetch(
-                `${API}/api/upload?filename=${encodeURIComponent(file.name)}`,
-                {
-                    method: "POST",
-                    headers: {
-                        "Authorization": `Bearer ${password}`
-                    },
-                    body: file
-                }
-            );
+            const metadata = await readMetadata(file);
+
+            const form = new FormData();
+
+            form.append("file", file);
+            form.append("metadata", JSON.stringify({
+                title: metadata.title,
+                artist: metadata.artist,
+                album: metadata.album
+            }));
+
+            if (metadata.artwork) {
+                form.append("artwork", metadata.artwork, "cover");
+            }
+
+            status.textContent =
+                `Uploading: ${file.name} (${i + 1}/${files.length})`;
+
+            const response = await fetch(`${API}/api/upload`, {
+                method: "POST",
+                headers: {
+                    "Authorization": `Bearer ${password}`
+                },
+                body: form
+            });
 
             if (!response.ok) {
 
@@ -431,10 +579,11 @@ document.getElementById("upload-button").addEventListener("click", async () => {
 
                 if (response.status === 401) {
                     sessionStorage.removeItem("uploadPassword");
-                    throw new Error("Incorrect upload password.");
+                    status.textContent = "Incorrect upload password.";
+                    return;
                 }
 
-                throw new Error(result.error || "Upload failed");
+                throw new Error(result.error);
 
             }
 
@@ -442,13 +591,8 @@ document.getElementById("upload-button").addEventListener("click", async () => {
 
         } catch (error) {
 
-            console.error(`Failed to upload ${file.name}:`, error);
+            console.error(error);
             failed++;
-
-            if (error.message === "Incorrect upload password.") {
-                status.textContent = error.message;
-                return;
-            }
 
         }
 
