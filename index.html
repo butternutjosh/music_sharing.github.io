@@ -218,8 +218,38 @@
 <div id="player-container">
     <audio id="audio-player" controls></audio>
 </div>
-
+<script src="https://cdn.jsdelivr.net/npm/jsmediatags@3.9.7/dist/jsmediatags.min.js"></script>
 <script>
+
+// Test MP3 metadata extraction
+document.getElementById("file-input").addEventListener("change", () => {
+
+    const file = document.getElementById("file-input").files[0];
+
+    if (!file) return;
+
+    jsmediatags.read(file, {
+
+        onSuccess: function(result) {
+
+            const tags = result.tags;
+
+            console.log("Title:", tags.title);
+            console.log("Artist:", tags.artist);
+            console.log("Album:", tags.album);
+            console.log("Has artwork:", !!tags.picture);
+
+        },
+
+        onError: function(error) {
+
+            console.error("Metadata extraction failed:", error);
+
+        }
+
+    });
+
+});
 
 const API = "https://music-library-api.parketjosh3.workers.dev";
 
