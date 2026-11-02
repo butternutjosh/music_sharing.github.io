@@ -424,23 +424,7 @@ function displayTracks(list) {
 
 }
 
-        const download = document.createElement("a");
-        download.className = "download";
-        download.textContent = "Download";
-        download.href = `${API}/api/file?key=${encodeURIComponent(track.key)}&download=1`;
-        download.target = "_blank";
-        download.rel = "noopener";
-
-        container.appendChild(info);
-        container.appendChild(playButton);
-        container.appendChild(download);
-
-        trackList.appendChild(container);
-
-    });
-
-}
-
+        
 
 // Search tracks
 search.addEventListener("input", () => {
