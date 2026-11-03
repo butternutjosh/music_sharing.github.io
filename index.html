@@ -293,12 +293,6 @@ async function loadTracks() {
 
 
 // Display tracks
-// Keep track of which artist and album are selected
-let selectedArtist = null;
-let selectedAlbum = null;
-
-
-// Display music library
 // Currently selected album
 let selectedAlbum = null;
 
@@ -361,7 +355,9 @@ function displayTracks(list) {
             albumCard.style.borderRadius = "10px";
             albumCard.style.cursor = "pointer";
 
-            // Artwork
+            // Find artwork from any track on the album
+            const artworkTrack = songs.find(track => track.artworkKey);
+
             const cover = document.createElement("img");
 
             cover.style.width = "100px";
@@ -369,17 +365,14 @@ function displayTracks(list) {
             cover.style.objectFit = "cover";
             cover.style.borderRadius = "6px";
 
-            cover.src = songs.find(track => track.artworkKey)?.artworkKey
-                ? `${API}/api/artwork?key=${encodeURIComponent(
-                    songs.find(track => track.artworkKey).artworkKey
-                )}`
+            cover.src = artworkTrack
+                ? `${API}/api/artwork?key=${encodeURIComponent(artworkTrack.artworkKey)}`
                 : "https://placehold.co/180x180/333333/ffffff?text=No+Artwork";
 
             // Album information
             const info = document.createElement("div");
 
             const title = document.createElement("h3");
-
             title.textContent = album;
 
             const artistNames = [...new Set(
@@ -387,13 +380,10 @@ function displayTracks(list) {
             )];
 
             const artist = document.createElement("p");
-
             artist.textContent = artistNames.join(", ");
 
             const count = document.createElement("p");
-
             count.textContent = `${songs.length} tracks`;
-
             count.style.color = "#999";
 
             info.appendChild(title);
@@ -423,7 +413,6 @@ function displayTracks(list) {
     // SELECTED ALBUM: DISPLAY TRACKS
 
     const heading = document.createElement("h2");
-
     heading.textContent = selectedAlbum;
 
     trackList.appendChild(heading);
@@ -433,20 +422,16 @@ function displayTracks(list) {
     songs.forEach(track => {
 
         const row = document.createElement("div");
-
         row.className = "track";
 
         const info = document.createElement("div");
-
         info.className = "track-info";
 
         const title = document.createElement("div");
-
         title.className = "track-name";
         title.textContent = track.name;
 
         const artist = document.createElement("div");
-
         artist.className = "track-size";
         artist.textContent = track.artist || "Unknown Artist";
 
@@ -455,7 +440,6 @@ function displayTracks(list) {
 
         // Play button
         const play = document.createElement("button");
-
         play.textContent = "▶";
 
         play.addEventListener("click", () => {
@@ -469,7 +453,6 @@ function displayTracks(list) {
 
         // Download button
         const download = document.createElement("a");
-
         download.className = "download";
         download.textContent = "Download";
 
@@ -477,159 +460,6 @@ function displayTracks(list) {
             `${API}/api/file?key=${encodeURIComponent(track.key)}&download=1`;
 
         row.appendChild(info);
-        row.appendChild(play);
-        row.appendChild(download);
-
-        trackList.appendChild(row);
-
-    });
-
-}
-
-
-    // BACK BUTTON
-    if (selectedArtist) {
-
-        const back = document.createElement("button");
-        back.textContent = selectedAlbum ? "← Back to albums" : "← Back to artists";
-
-        back.addEventListener("click", () => {
-
-            if (selectedAlbum) {
-                selectedAlbum = null;
-            } else {
-                selectedArtist = null;
-            }
-
-            displayTracks(tracks);
-
-        });
-
-        trackList.appendChild(back);
-
-    }
-
-
-    // ARTIST VIEW
-    if (!selectedArtist) {
-
-        Object.keys(artists).sort().forEach(artist => {
-
-            const button = document.createElement("button");
-
-            button.textContent = artist;
-            button.style.display = "block";
-            button.style.width = "100%";
-            button.style.marginTop = "12px";
-            button.style.textAlign = "left";
-
-            button.addEventListener("click", () => {
-
-                selectedArtist = artist;
-                displayTracks(tracks);
-
-            });
-
-            trackList.appendChild(button);
-
-        });
-
-        return;
-    }
-
-
-    // ALBUM VIEW
-    if (!selectedAlbum) {
-
-        const heading = document.createElement("h2");
-        heading.textContent = selectedArtist;
-
-        trackList.appendChild(heading);
-
-        Object.keys(artists[selectedArtist] || {}).sort().forEach(album => {
-
-            const songs = artists[selectedArtist][album];
-
-            const albumButton = document.createElement("button");
-
-            albumButton.style.display = "flex";
-            albumButton.style.alignItems = "center";
-            albumButton.style.gap = "15px";
-            albumButton.style.width = "100%";
-            albumButton.style.marginTop = "15px";
-            albumButton.style.textAlign = "left";
-
-            const cover = document.createElement("img");
-
-            cover.style.width = "70px";
-            cover.style.height = "70px";
-            cover.style.objectFit = "cover";
-            cover.style.borderRadius = "6px";
-
-            cover.src = songs[0].artworkKey
-                ? `${API}/api/artwork?key=${encodeURIComponent(songs[0].artworkKey)}`
-                : "https://placehold.co/180x180/333333/ffffff?text=No+Artwork";
-
-            const albumInfo = document.createElement("span");
-
-            albumInfo.textContent = `${album} (${songs.length} tracks)`;
-
-            albumButton.appendChild(cover);
-            albumButton.appendChild(albumInfo);
-
-            albumButton.addEventListener("click", () => {
-
-                selectedAlbum = album;
-                displayTracks(tracks);
-
-            });
-
-            trackList.appendChild(albumButton);
-
-        });
-
-        return;
-    }
-
-
-    // TRACK VIEW
-    const heading = document.createElement("h2");
-
-    heading.textContent = `${selectedArtist} - ${selectedAlbum}`;
-
-    trackList.appendChild(heading);
-
-    const songs = artists[selectedArtist]?.[selectedAlbum] || [];
-
-    songs.forEach(track => {
-
-        const row = document.createElement("div");
-
-        row.className = "track";
-
-        const title = document.createElement("div");
-
-        title.className = "track-info";
-        title.textContent = track.name;
-
-        const play = document.createElement("button");
-
-        play.textContent = "▶";
-
-        play.addEventListener("click", () => {
-
-            player.src = `${API}/api/file?key=${encodeURIComponent(track.key)}`;
-            player.play();
-
-        });
-
-        const download = document.createElement("a");
-
-        download.className = "download";
-        download.textContent = "Download";
-        download.href = `${API}/api/file?key=${encodeURIComponent(track.key)}&download=1`;
-
-        row.appendChild(title);
         row.appendChild(play);
         row.appendChild(download);
 
