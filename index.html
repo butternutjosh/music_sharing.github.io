@@ -299,29 +299,192 @@ let selectedAlbum = null;
 
 
 // Display music library
+// Currently selected album
+let selectedAlbum = null;
+
+
+// Display albums and tracks
 function displayTracks(list) {
 
     trackList.innerHTML = "";
 
-    // Group tracks by artist
-    const artists = {};
+    // Group tracks by album ONLY
+    const albums = {};
 
     list.forEach(track => {
 
-       const artist = (track.artist || "Unknown Artist").trim();
-       const album = (track.album || "Unknown Album").trim();
+        const album = (track.album || "Unknown Album").trim();
 
-        if (!artists[artist]) {
-            artists[artist] = {};
+        if (!albums[album]) {
+            albums[album] = [];
         }
 
-        if (!artists[artist][album]) {
-            artists[artist][album] = [];
-        }
-
-        artists[artist][album].push(track);
+        albums[album].push(track);
 
     });
+
+
+    // BACK BUTTON
+    if (selectedAlbum) {
+
+        const back = document.createElement("button");
+
+        back.textContent = "← Back to albums";
+
+        back.addEventListener("click", () => {
+
+            selectedAlbum = null;
+            displayTracks(tracks);
+
+        });
+
+        trackList.appendChild(back);
+
+    }
+
+
+    // ALBUM LIST
+    if (!selectedAlbum) {
+
+        Object.keys(albums).sort().forEach(album => {
+
+            const songs = albums[album];
+
+            const albumCard = document.createElement("div");
+
+            albumCard.style.display = "flex";
+            albumCard.style.alignItems = "center";
+            albumCard.style.gap = "20px";
+            albumCard.style.padding = "15px";
+            albumCard.style.marginTop = "15px";
+            albumCard.style.background = "#202020";
+            albumCard.style.borderRadius = "10px";
+            albumCard.style.cursor = "pointer";
+
+            // Artwork
+            const cover = document.createElement("img");
+
+            cover.style.width = "100px";
+            cover.style.height = "100px";
+            cover.style.objectFit = "cover";
+            cover.style.borderRadius = "6px";
+
+            cover.src = songs.find(track => track.artworkKey)?.artworkKey
+                ? `${API}/api/artwork?key=${encodeURIComponent(
+                    songs.find(track => track.artworkKey).artworkKey
+                )}`
+                : "https://placehold.co/180x180/333333/ffffff?text=No+Artwork";
+
+            // Album information
+            const info = document.createElement("div");
+
+            const title = document.createElement("h3");
+
+            title.textContent = album;
+
+            const artistNames = [...new Set(
+                songs.map(track => track.artist || "Unknown Artist")
+            )];
+
+            const artist = document.createElement("p");
+
+            artist.textContent = artistNames.join(", ");
+
+            const count = document.createElement("p");
+
+            count.textContent = `${songs.length} tracks`;
+
+            count.style.color = "#999";
+
+            info.appendChild(title);
+            info.appendChild(artist);
+            info.appendChild(count);
+
+            albumCard.appendChild(cover);
+            albumCard.appendChild(info);
+
+            // Open album
+            albumCard.addEventListener("click", () => {
+
+                selectedAlbum = album;
+                displayTracks(tracks);
+
+            });
+
+            trackList.appendChild(albumCard);
+
+        });
+
+        return;
+
+    }
+
+
+    // SELECTED ALBUM: DISPLAY TRACKS
+
+    const heading = document.createElement("h2");
+
+    heading.textContent = selectedAlbum;
+
+    trackList.appendChild(heading);
+
+    const songs = albums[selectedAlbum] || [];
+
+    songs.forEach(track => {
+
+        const row = document.createElement("div");
+
+        row.className = "track";
+
+        const info = document.createElement("div");
+
+        info.className = "track-info";
+
+        const title = document.createElement("div");
+
+        title.className = "track-name";
+        title.textContent = track.name;
+
+        const artist = document.createElement("div");
+
+        artist.className = "track-size";
+        artist.textContent = track.artist || "Unknown Artist";
+
+        info.appendChild(title);
+        info.appendChild(artist);
+
+        // Play button
+        const play = document.createElement("button");
+
+        play.textContent = "▶";
+
+        play.addEventListener("click", () => {
+
+            player.src =
+                `${API}/api/file?key=${encodeURIComponent(track.key)}`;
+
+            player.play();
+
+        });
+
+        // Download button
+        const download = document.createElement("a");
+
+        download.className = "download";
+        download.textContent = "Download";
+
+        download.href =
+            `${API}/api/file?key=${encodeURIComponent(track.key)}&download=1`;
+
+        row.appendChild(info);
+        row.appendChild(play);
+        row.appendChild(download);
+
+        trackList.appendChild(row);
+
+    });
+
+}
 
 
     // BACK BUTTON
@@ -481,7 +644,6 @@ function displayTracks(list) {
 // Search tracks
 search.addEventListener("input", () => {
 
-    selectedArtist = null;
     selectedAlbum = null;
 
     const query = search.value.toLowerCase();
